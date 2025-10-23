@@ -24,8 +24,8 @@
 
   .fire-container {
     position: relative;
-    width: 100px;
-    height: 160px;
+    width: 60px;
+    height: 100px;
   }
 
   .flame {
@@ -33,21 +33,21 @@
     bottom: 0;
     left: 50%;
     transform: translateX(-50%);
-    width: 40px;
-    height: 80px;
+    width: 24px;
+    height: 50px;
     background: radial-gradient(ellipse at center, var(--flame-inner) 0%, var(--flame-outer) 80%, transparent 100%);
     border-radius: 50% 50% 30% 30%;
     box-shadow:
-      0 0 30px 10px var(--glow-color),
-      0 0 60px 30px var(--flame-outer);
+      0 0 15px 6px var(--glow-color),
+      0 0 30px 15px var(--flame-outer);
     opacity: 0.95;
-    animation: flicker 2.8s infinite ease-in-out alternate;
+    animation: flicker 3.2s infinite ease-in-out alternate;
   }
 
   @keyframes flicker {
     0% {
       transform: translateX(-50%) scale(1.02, 0.98) rotate(-2deg);
-      opacity: 0.9;
+      opacity: 0.88;
       filter: blur(0.5px);
     }
     25% {
@@ -74,13 +74,13 @@
 
   .glow {
     position: absolute;
-    bottom: -10px;
+    bottom: -6px;
     left: 50%;
     transform: translateX(-50%);
-    width: 120px;
-    height: 120px;
-    background: radial-gradient(circle, rgba(255,136,0,0.3) 0%, transparent 70%);
-    animation: glowPulse 3s infinite ease-in-out;
+    width: 70px;
+    height: 70px;
+    background: radial-gradient(circle, rgba(255,136,0,0.25) 0%, transparent 70%);
+    animation: glowPulse 3.5s infinite ease-in-out;
   }
 
   @keyframes glowPulse {
@@ -89,20 +89,20 @@
       transform: translateX(-50%) scale(1);
     }
     50% {
-      opacity: 0.45;
+      opacity: 0.4;
       transform: translateX(-50%) scale(1.1);
     }
   }
 
   .caption {
     position: absolute;
-    bottom: 30px;
+    bottom: 40px;
     color: #ffb84d;
     font-family: "Georgia", serif;
-    font-size: 1rem;
+    font-size: 0.95rem;
     text-align: center;
     width: 100%;
-    opacity: 0.7;
+    opacity: 0.75;
     letter-spacing: 0.05em;
   }
 </style>
@@ -113,5 +113,6 @@
     <div class="flame"></div>
   </div>
   <div class="caption">Week 3 of 14</div>
+  <!-- <p>The inner fire still burns</p> -->
 </body>
 </html>
