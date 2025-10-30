@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Antarāgni</title>
+<style>
+  :root {
+    --bg-color: #0b0b0f;
+    --flame-inner: #ffdf8f;
+    --flame-outer: #ff9933;
+    --glow-color: #ff8800;
+  }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    background: radial-gradient(circle at center, #141414 0%, var(--bg-color) 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .fire-container {
+    position: relative;
+    width: 60px;
+    height: 100px;
+  }
+
+  .flame {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 50px;
+    background: radial-gradient(ellipse at center, var(--flame-inner) 0%, var(--flame-outer) 80%, transparent 100%);
+    border-radius: 50% 50% 30% 30%;
+    box-shadow:
+      0 0 15px 6px var(--glow-color),
+      0 0 30px 15px var(--flame-outer);
+    opacity: 0.95;
+    animation: flicker 3.2s infinite ease-in-out alternate;
+  }
+
+  @keyframes flicker {
+    0% {
+      transform: translateX(-50%) scale(1.02, 0.98) rotate(-2deg);
+      opacity: 0.88;
+      filter: blur(0.5px);
+    }
+    25% {
+      transform: translateX(-50%) scale(0.98, 1.02) rotate(1deg);
+      opacity: 1;
+      filter: blur(0.6px);
+    }
+    50% {
+      transform: translateX(-50%) scale(1.03, 0.97) rotate(-1deg);
+      opacity: 0.93;
+      filter: blur(0.4px);
+    }
+    75% {
+      transform: translateX(-50%) scale(0.97, 1.03) rotate(2deg);
+      opacity: 0.96;
+      filter: blur(0.5px);
+    }
+    100% {
+      transform: translateX(-50%) scale(1.01, 0.99) rotate(-1deg);
+      opacity: 0.9;
+      filter: blur(0.5px);
+    }
+  }
+
+  .glow {
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70px;
+    height: 70px;
+    background: radial-gradient(circle, rgba(255,136,0,0.25) 0%, transparent 70%);
+    animation: glowPulse 3.5s infinite ease-in-out;
+  }
+
+  @keyframes glowPulse {
+    0%, 100% {
+      opacity: 0.25;
+      transform: translateX(-50%) scale(1);
+    }
+    50% {
+      opacity: 0.4;
+      transform: translateX(-50%) scale(1.1);
+    }
+  }
+
+  .caption {
+    position: absolute;
+    bottom: 40px;
+    color: #ffb84d;
+    font-family: "Georgia", serif;
+    font-size: 0.95rem;
+    text-align: center;
+    width: 100%;
+    opacity: 0.75;
+    letter-spacing: 0.05em;
+  }
+</style>
+</head>
+<body>
+  <div class="fire-container">
+    <div class="glow"></div>
+    <div class="flame"></div>
+  </div>
+  <div class="caption">04 of 14</div>
+</body>
+</html>
