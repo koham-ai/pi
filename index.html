@@ -93,18 +93,26 @@
       transform: translateX(-50%) scale(1.3);
     }
   }
-
   .caption {
-    position: absolute;
-    bottom: 40px;
-    color: #ffb84d;
-    font-family: "Georgia", serif;
-    font-size: 0.95rem;
-    text-align: center;
-    width: 100%;
-    opacity: 0.75;
-    letter-spacing: 0.05em;
-  }
+  position: absolute;
+  bottom: 25px;
+  width: 100%;
+  text-align: center;
+  font-family: "Georgia", serif;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+}
+
+.caption a {
+  color: #ffb84d;
+  text-decoration: none;
+}
+
+.caption a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
 </style>
 </head>
 <body>
@@ -112,6 +120,6 @@
     <div class="glow"></div>
     <div class="flame"></div>
   </div>
-  <div class="caption"><a class="caption" href="https://www.youtube.com/watch?v=4NKhYkFAmUw">1.314</a></div>
+  <div class="caption"><a href="https://www.youtube.com/watch?v=4NKhYkFAmUw">1.314</a></div>
 </body>
 </html>
