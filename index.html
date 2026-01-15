@@ -1,125 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Antarāgni</title>
-<style>
-  :root {
-    --bg-color: #0b0b0f;
-    --flame-inner: #ffdf8f;
-    --flame-outer: #ff9933;
-    --glow-color: #ff8800;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Beginning</title>
+    <style>
+        :root {
+            --sky-color: #000814;
+            --sun-left: 50%;
+            --sun-bottom: -150px;
+            --sun-opacity: 0;
+            --sun-color: #ff3300;
+            --sun-glow: #ffcc00;
+        }
 
-  body {
-    margin: 0;
-    height: 100vh;
-    background: radial-gradient(circle at center, #141414 0%, var(--bg-color) 100%);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-  }
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            background-color: #000;
+        }
 
-  .fire-container {
-    position: relative;
-    width: 121px;
-    height: 169px;
-  }
+        .sky {
+            width: 100%;
+            height: 100vh;
+            background-color: var(--sky-color);
+            transition: background-color 3.5s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-  .flame {
-    position: absolute;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60px;
-    height: 120px;
-    background: radial-gradient(ellipse at center, var(--flame-inner) 0%, var(--flame-outer) 80%, transparent 100%);
-    border-radius: 50% 50% 30% 30%;
-    box-shadow:
-      0 0 30px 12px var(--glow-color),
-      0 0 60px 30px var(--flame-outer);
-    opacity: 0.95;
-    animation: flicker 3.2s infinite ease-in-out alternate;
-  }
+        /* The Sun Link */
+        #sun-link {
+            position: absolute;
+            left: var(--sun-left);
+            bottom: var(--sun-bottom);
+            transform: translateX(-50%);
+            z-index: 5;
+            pointer-events: none; /* Disabled until stabilized */
+            cursor: pointer;
+            text-decoration: none;
+            transition: bottom 3s ease-out, left 3s ease-out;
+        }
 
-  @keyframes flicker {
-    0% {
-      transform: translateX(-50%) scale(1.02, 0.98) rotate(-2deg);
-      opacity: 0.88;
-      filter: blur(0.5px);
-    }
-    25% {
-      transform: translateX(-50%) scale(0.98, 1.02) rotate(1deg);
-      opacity: 1;
-      filter: blur(0.6px);
-    }
-    50% {
-      transform: translateX(-50%) scale(1.03, 0.97) rotate(-1deg);
-      opacity: 0.93;
-      filter: blur(0.4px);
-    }
-    75% {
-      transform: translateX(-50%) scale(0.97, 1.03) rotate(2deg);
-      opacity: 0.96;
-      filter: blur(0.5px);
-    }
-    100% {
-      transform: translateX(-50%) scale(1.01, 0.99) rotate(-1deg);
-      opacity: 0.9;
-      filter: blur(0.5px);
-    }
-  }
+        .sun {
+            width: 130px;
+            height: 130px;
+            background-color: var(--sun-color);
+            border-radius: 50%;
+            opacity: var(--sun-opacity);
+            box-shadow: 0 0 60px var(--sun-glow), 0 0 120px rgba(255, 255, 255, 0.2);
+            transition: background-color 3s ease, opacity 2s ease, transform 0.4s ease, box-shadow 3s ease;
+        }
 
-  .glow {
-    position: absolute;
-    bottom: -6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100px;
-    height: 100px;
-    background: radial-gradient(circle, rgba(255,136,0,0.25) 0%, transparent 70%);
-    animation: glowPulse 3.5s infinite ease-in-out;
-  }
+        #sun-link:hover .sun {
+            transform: scale(1.1);
+            box-shadow: 0 0 100px var(--sun-glow), 0 0 150px rgba(255, 255, 255, 0.4);
+        }
 
-  @keyframes glowPulse {
-    0%, 100% {
-      opacity: 0.25;
-      transform: translateX(-50%) scale(1.1);
-    }
-    50% {
-      opacity: 0.4;
-      transform: translateX(-50%) scale(1.3);
-    }
-  }
-  .caption {
-  position: absolute;
-  bottom: 25px;
-  width: 100%;
-  text-align: center;
-  font-family: "Georgia", serif;
-  font-size: 1rem;
-  letter-spacing: 0.05em;
-  opacity: 0.75;
-}
-
-.caption a {
-  color: #ffb84d;
-  text-decoration: none;
-}
-
-.caption a:hover {
-  opacity: 1;
-  text-decoration: underline;
-}
-</style>
+        /* Landscape */
+        .horizon {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 20vh;
+            background: linear-gradient(to bottom, #0d1a0d 0%, #000000 100%);
+            z-index: 10;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
 </head>
 <body>
-  <div class="fire-container">
-    <div class="glow"></div>
-    <div class="flame"></div>
-  </div>
-  <div class="caption"><a href="https://www.youtube.com/watch?v=CBsW_vXyEdY">14.</a></div>
+
+    <div class="sky" id="sky-bg">
+        <a href="" id="sun-link" target="_blank">
+            <div class="sun"></div>
+        </a>
+        <div class="horizon"></div>
+    </div>
+
+    <script>
+        function updateEnvironment() {
+            const now = new Date();
+            const hrs = now.getHours();
+            const mins = now.getMinutes();
+            const totalMins = (hrs * 60) + mins;
+
+            // Daylight Window: 6:00 AM to 7:00 PM
+            const sunrise = 360; 
+            const sunset = 1140; 
+            const sunLink = document.getElementById('sun-link');
+
+            if (totalMins >= sunrise && totalMins <= sunset) {
+                const dayProgress = (totalMins - sunrise) / (sunset - sunrise);
+                
+                // 1. Arc Positioning
+                const leftPos = 10 + (dayProgress * 80);
+                const heightFactor = -4 * Math.pow((dayProgress - 0.5), 2) + 1;
+                const bottomPos = (heightFactor * 65) + 15; 
+
+                // 2. SUN COLOR: Red -> Yellow -> Bright Yellow-White
+                // HeightFactor 0 (Horizon) = Red
+                // HeightFactor 0.5 = Pure Yellow
+                // HeightFactor 1 (Peak) = Yellowish White
+                let r = 255;
+                let g = Math.floor(100 + (155 * heightFactor)); // Increases green for yellow
+                let b = Math.floor(200 * Math.pow(heightFactor, 2)); // Adds blue only at peak for white
+                const sunColor = `rgb(${r}, ${g}, ${b})`;
+                const sunGlow = `rgba(${r}, ${g}, 0, 0.8)`;
+
+                // 3. SKY COLOR: Reacts to sun height and time
+                let skyColor;
+                if (dayProgress < 0.15 || dayProgress > 0.85) {
+                    // Sunrise/Sunset: Deep Orange/Pink
+                    skyColor = "linear-gradient(to top, #ff7e5f, #feb47b)"; 
+                } else if (dayProgress < 0.3 || dayProgress > 0.7) {
+                    // Morning/Evening: Light Blue-Gold
+                    skyColor = "#8ecae6";
+                } else {
+                    // High Noon: Rich Sky Blue
+                    skyColor = "#219ebc";
+                }
+
+                // Apply to Styles
+                document.documentElement.style.setProperty('--sun-left', leftPos + "%");
+                document.documentElement.style.setProperty('--sun-bottom', bottomPos + "%");
+                document.documentElement.style.setProperty('--sun-opacity', "1");
+                document.documentElement.style.setProperty('--sun-color', sunColor);
+                document.documentElement.style.setProperty('--sun-glow', sunGlow);
+                document.getElementById('sky-bg').style.background = skyColor;
+
+                // Enable link after the 3s rise
+                setTimeout(() => {
+                    sunLink.style.pointerEvents = "auto";
+                }, 3000);
+
+            } else {
+                // Night Phase
+                document.documentElement.style.setProperty('--sun-opacity', "0");
+                document.getElementById('sky-bg').style.background = "#023047";
+                sunLink.style.pointerEvents = "none";
+            }
+        }
+
+        window.onload = updateEnvironment;
+        setInterval(updateEnvironment, 60000);
+    </script>
 </body>
 </html>
