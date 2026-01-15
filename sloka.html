@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="sa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earnest Prayer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #fdfaf0; /* Sacred parchment color */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Crimson Pro', serif;
+            color: #2c1e14;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 800px;
+            padding: 60px 20px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+
+        .om-symbol {
+            font-size: 100px;
+            margin-bottom: 30px;
+            color: #d35400; /* Deep Saffron */
+            display: block;
+            filter: drop-shadow(0 0 10px rgba(211, 84, 0, 0.2));
+        }
+
+        .sloka-box {
+            margin-bottom: 40px;
+        }
+
+        .sloka-line {
+            font-size: 28px;
+            line-height: 2;
+            margin: 10px 0;
+            letter-spacing: 0.5px;
+        }
+
+        /* Styling for the Swaras/Diacritics */
+        .iast {
+            font-style: italic;
+        }
+
+        .shanti {
+            font-size: 22px;
+            margin-top: 30px;
+            color: #5d4037;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        hr {
+            width: 50px;
+            border: 0;
+            border-top: 2px solid #d35400;
+            margin: 40px auto;
+            opacity: 0.3;
+        }
+
+        #message-area {
+            margin-top: 30px;
+            font-size: 18px;
+            color: #8d6e63;
+            min-height: 50px;
+            font-style: normal;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <span class="om-symbol">ॐ</span>
+
+        <div class="sloka-box">
+            <div class="sloka-line iast">
+                asátō mā sádgamáya <br>
+                támasō mā jyótirgamáya <br>
+                mṛtyór mā amṛ́táṃ gamáya
+            </div>
+        </div>
+
+        <div class="shanti iast">
+            oṃ śāntiḥ śāntiḥ śāntiḥ
+        </div>
+
+        <hr>
+
+        <div id="message-area">
+            </div>
+    </div>
+
+</body>
+</html>
