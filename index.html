@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New Beginning</title>
+    <title>New Beginnings</title>
     <style>
         :root {
-            --sky-color: #000814;
-            --sun-left: 50%;
-            --sun-bottom: -150px;
-            --sun-opacity: 0;
+            --sky-color: #001122;
+            --sun-left: 0%;
+            --sun-bottom: -200px;
             --sun-color: #ff3300;
-            --sun-glow: #ffcc00;
+            --sun-opacity: 0;
+            /* Start ground as absolute black */
+            --ground-color: #000000; 
         }
 
         body, html {
@@ -26,57 +27,51 @@
             width: 100%;
             height: 100vh;
             background-color: var(--sky-color);
-            transition: background-color 3.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background-color 6s ease-in-out;
             position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
         }
 
-        /* The Sun Link */
         #sun-link {
             position: absolute;
             left: var(--sun-left);
             bottom: var(--sun-bottom);
             transform: translateX(-50%);
             z-index: 5;
-            pointer-events: none; /* Disabled until stabilized */
+            pointer-events: none;
             cursor: pointer;
-            text-decoration: none;
-            transition: bottom 3s ease-out, left 3s ease-out;
+            /* 10-second glide into position */
+            transition: bottom 10s cubic-bezier(0.22, 1, 0.36, 1), 
+                        left 10s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         .sun {
-            width: 130px;
-            height: 130px;
+            width: 115px;
+            height: 115px;
             background-color: var(--sun-color);
             border-radius: 50%;
             opacity: var(--sun-opacity);
-            box-shadow: 0 0 60px var(--sun-glow), 0 0 120px rgba(255, 255, 255, 0.2);
-            transition: background-color 3s ease, opacity 2s ease, transform 0.4s ease, box-shadow 3s ease;
+            box-shadow: 0 0 80px var(--sun-color);
+            transition: background-color 5s ease, opacity 4s ease;
         }
 
-        #sun-link:hover .sun {
-            transform: scale(1.1);
-            box-shadow: 0 0 100px var(--sun-glow), 0 0 150px rgba(255, 255, 255, 0.4);
-        }
-
-        /* Landscape */
         .horizon {
             position: absolute;
             bottom: 0;
             width: 100%;
             height: 20vh;
-            background: linear-gradient(to bottom, #0d1a0d 0%, #000000 100%);
+            /* We use background-color for the transition and a gradient overlay for depth */
+            background-color: var(--ground-color);
+            background-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.8) 100%);
             z-index: 10;
+            transition: background-color 8s ease-in-out;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
     </style>
 </head>
 <body>
 
-    <div class="sky" id="sky-bg">
-        <a href="https://www.youtube.com/watch?v=RxnXQA0niSU" id="sun-link" target="_blank">
+    <div class="sky" id="sky">
+        <a href="sloka.html" id="sun-link">
             <div class="sun"></div>
         </a>
         <div class="horizon"></div>
@@ -85,63 +80,61 @@
     <script>
         function updateEnvironment() {
             const now = new Date();
-            const hrs = now.getHours();
-            const mins = now.getMinutes();
-            const totalMins = (hrs * 60) + mins;
+            const totalMins = (now.getHours() * 60) + now.getMinutes();
+            
+            // 1. SKY COLOR LOGIC
+            const dayPercent = (totalMins / 1440) * 100;
+            let skyColor = "#001122";
+            if (dayPercent > 10) skyColor = "#3a506b";
+            if (dayPercent > 25) skyColor = "#87CEEB";
+            if (dayPercent > 50) skyColor = "#4da6ff";
+            if (dayPercent > 70) skyColor = "#ff8c00";
+            if (dayPercent > 85) skyColor = "#2c3e50";
+            if (dayPercent > 95) skyColor = "#000814";
+            document.documentElement.style.setProperty('--sky-color', skyColor);
 
-            // Daylight Window: 6:00 AM to 7:00 PM
+            // 2. SUN & GROUND (6:00 AM to 7:00 PM Window)
             const sunrise = 360; 
             const sunset = 1140; 
             const sunLink = document.getElementById('sun-link');
 
             if (totalMins >= sunrise && totalMins <= sunset) {
-                const dayProgress = (totalMins - sunrise) / (sunset - sunrise);
+                const x = (totalMins - sunrise) / (sunset - sunrise);
+                const heightFactor = -4 * Math.pow(x, 2) + (4 * x); // 0 at dawn, 1 at noon
                 
-                // 1. Arc Positioning
-                const leftPos = 10 + (dayProgress * 80);
-                const heightFactor = -4 * Math.pow((dayProgress - 0.5), 2) + 1;
-                const bottomPos = (heightFactor * 65) + 15; 
+                const leftPos = 10 + (x * 80);
+                const bottomPos = (heightFactor * 55) + 15;
 
-                // 2. SUN COLOR: Red -> Yellow -> Bright Yellow-White
-                // HeightFactor 0 (Horizon) = Red
-                // HeightFactor 0.5 = Pure Yellow
-                // HeightFactor 1 (Peak) = Yellowish White
-                let r = 255;
-                let g = Math.floor(100 + (155 * heightFactor)); // Increases green for yellow
-                let b = Math.floor(200 * Math.pow(heightFactor, 2)); // Adds blue only at peak for white
-                const sunColor = `rgb(${r}, ${g}, ${b})`;
-                const sunGlow = `rgba(${r}, ${g}, 0, 0.8)`;
+                // Sun Color
+                const g = Math.floor(60 + (195 * heightFactor));
+                const b = Math.floor(180 * Math.pow(heightFactor, 3));
+                
+                // GROUND COLOR LOGIC (Dynamic RGB)
+                // At x=0 (Dawn): HeightFactor is 0. Ground should be Dark Brownish.
+                // At x=0.5 (Noon): HeightFactor is 1. Ground should be Vibrant Green.
+                
+                let gr, gg, gb;
+                // Base earth color (dark brown)
+                const baseR = 40, baseG = 25, baseB = 10;
+                // Target green color (grass green: 46, 204, 113)
+                const targetR = 46, targetG = 204, targetB = 113;
 
-                // 3. SKY COLOR: Reacts to sun height and time
-                let skyColor;
-                if (dayProgress < 0.15 || dayProgress > 0.85) {
-                    // Sunrise/Sunset: Deep Orange/Pink
-                    skyColor = "linear-gradient(to top, #ff7e5f, #feb47b)"; 
-                } else if (dayProgress < 0.3 || dayProgress > 0.7) {
-                    // Morning/Evening: Light Blue-Gold
-                    skyColor = "#8ecae6";
-                } else {
-                    // High Noon: Rich Sky Blue
-                    skyColor = "#219ebc";
-                }
+                // Interpolate between dark brown and grass green based on heightFactor
+                gr = Math.floor(baseR + (targetR - baseR) * heightFactor);
+                gg = Math.floor(baseG + (targetG - baseG) * heightFactor);
+                gb = Math.floor(baseB + (targetB - baseB) * heightFactor);
 
-                // Apply to Styles
                 document.documentElement.style.setProperty('--sun-left', leftPos + "%");
                 document.documentElement.style.setProperty('--sun-bottom', bottomPos + "%");
                 document.documentElement.style.setProperty('--sun-opacity', "1");
-                document.documentElement.style.setProperty('--sun-color', sunColor);
-                document.documentElement.style.setProperty('--sun-glow', sunGlow);
-                document.getElementById('sky-bg').style.background = skyColor;
+                document.documentElement.style.setProperty('--sun-color', `rgb(255, ${g}, ${b})`);
+                document.documentElement.style.setProperty('--ground-color', `rgb(${gr}, ${gg}, ${gb})`);
 
-                // Enable link after the 3s rise
-                setTimeout(() => {
-                    sunLink.style.pointerEvents = "auto";
-                }, 3000);
-
+                setTimeout(() => { sunLink.style.pointerEvents = "auto"; }, 10000);
             } else {
                 // Night Phase
                 document.documentElement.style.setProperty('--sun-opacity', "0");
-                document.getElementById('sky-bg').style.background = "#023047";
+                document.documentElement.style.setProperty('--ground-color', "#000000");
                 sunLink.style.pointerEvents = "none";
             }
         }
