@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Inner Light - Contemplation</title>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,500;1,300&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sky-color: #001122;
+            --accent-color: #d35400;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: #000;
+            font-family: 'Crimson Pro', serif;
+            color: #fdfaf0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 6s ease-in-out;
+        }
+
+        .background-sky {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--sky-color);
+            z-index: -1;
+            transition: background 6s ease-in-out;
+        }
+
+        .journal-container {
+            max-width: 800px;
+            width: 90%;
+            padding: 60px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(15px); /* Frosted glass effect */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 4px; /* Minimalist sharp edges or slight curve */
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            animation: fadeIn 4s ease-out;
+        }
+
+        .om-header {
+            font-size: 50px;
+            color: var(--accent-color);
+            margin-bottom: 30px;
+            opacity: 0.8;
+            text-align: center;
+        }
+
+        .message-title {
+            font-size: 1.2rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-align: center;
+            margin-bottom: 40px;
+            color: rgba(253, 250, 240, 0.6);
+        }
+
+        .content-area {
+            font-size: 1.25rem;
+            line-height: 1.9;
+            text-align: justify;
+            font-weight: 300;
+            color: rgba(253, 250, 240, 0.9);
+        }
+
+        .content-area strong {
+            font-weight: 500;
+            color: var(--accent-color);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .footer-shanti {
+            margin-top: 50px;
+            text-align: center;
+            font-style: italic;
+            opacity: 0.5;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="background-sky" id="bg"></div>
+
+    <div class="journal-container">
+        <div class="om-header">ॐ</div>
+        <div class="message-title">Lead us to the Real</div>
+        
+        <div class="content-area">
+            
+            
+            "Countless have been the universes that have come into being and that have been dissolved. Even the countless universes that exist at this moment are impossible to conceive of. All this can immediately be realized in one's own heart, for these universes are the creations of the desires that arise in the heart, like castles built in the air. The living being conjures up this world in his heart and while he is alive he strengthens this illusion; when he passes away, he conjures up the world beyond and experiences it - thus there arise worlds within worlds just as there are layers within layers in a plaintain stem. Neither the world of matter nor the modes of creation are truly real; yet the living and the dead think and feel they are real. Ignorance of this truth keeps up the appearance."    
+            <br><br>
+         
+        </div>
+
+        <div class="footer-shanti">
+            oṃ śāntiḥ śāntiḥ śāntiḥ
+        </div>
+    </div>
+
+    <script>
+        function updateSky() {
+            const now = new Date();
+            const totalMins = (now.getHours() * 60) + now.getMinutes();
+            const dayPercent = (totalMins / 1440) * 100;
+
+            let skyColor = "#001122"; // Midnight
+            if (dayPercent > 10) skyColor = "#3a506b"; // Early Dawn
+            if (dayPercent > 25) skyColor = "#87CEEB"; // Morning
+            if (dayPercent > 50) skyColor = "#4da6ff"; // Noon
+            if (dayPercent > 70) skyColor = "#ff8c00"; // Golden Hour
+            if (dayPercent > 85) skyColor = "#2c3e50"; // Dusk
+            if (dayPercent > 95) skyColor = "#000814"; // Night
+
+            document.documentElement.style.setProperty('--sky-color', skyColor);
+            
+            // Adjust accent color based on time (Saffron in day, Deep Gold at night)
+            const accent = (dayPercent > 25 && dayPercent < 75) ? "#d35400" : "#b8860b";
+            document.documentElement.style.setProperty('--accent-color', accent);
+        }
+
+        window.onload = updateSky;
+        setInterval(updateSky, 60000);
+    </script>
+</body>
+</html>
