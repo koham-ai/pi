@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Can you tell a green field?</title>
+    <title>Study me as much as you like, you will not know me</title>
     <style>
         :root {
             --sky-color: #001122;
@@ -56,25 +56,27 @@
             transition: background-color 5s ease, opacity 4s ease;
         }
 
-        /* Moon Styles - Now using images */
-        .moon-container {
+        /* Moon Styles */
+        #moon-link {
             position: absolute;
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
             left: var(--moon-left);
             bottom: var(--moon-bottom);
             opacity: var(--moon-opacity);
             transform: translateX(-50%);
             z-index: 5;
+            pointer-events: none;
+            cursor: pointer;
             transition: bottom 10s ease-out, left 10s ease-out, opacity 2s;
-            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6));
+            filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.5));
         }
 
         .moon-image {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            transition: opacity 0.5s ease;
+            transition: opacity 0.3s ease;
         }
 
         .horizon {
@@ -88,126 +90,24 @@
             transition: background-color 8s ease-in-out;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
         }
-
-        /* Debug Toggle Button */
-        #debug-toggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            padding: 12px 20px;
-            background: rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 8px;
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        #debug-toggle:hover {
-            background: rgba(255, 255, 255, 0.25);
-            border-color: rgba(255, 255, 255, 0.5);
-            transform: scale(1.05);
-        }
-
-        #debug-info {
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            z-index: 1000;
-            padding: 10px 15px;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            color: white;
-            font-family: monospace;
-            font-size: 12px;
-        }
-
-        #loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 18px;
-            z-index: 2000;
-        }
     </style>
 </head>
 <body>
-
-    <div id="loading">Loading moon phases...</div>
 
     <div class="sky" id="sky">
         <a href="sloka.html" id="sun-link">
             <div class="sun"></div>
         </a>
         
-        <div class="moon-container">
-            <a href="https://www.youtube.com/watch?v=Y5YKzTWU0Ng" id="moon-link">
-            <img id="moon-image" class="moon-image" alt="Moon Phase"></a>
-        </div>
+        <a href="https://www.youtube.com/watch?v=Y5YKzTWU0Ng" id="moon-link">
+            <img id="moon-image" class="moon-image" alt="Moon Phase">
+        </a>
         
         <div class="horizon"></div>
     </div>
 
-    <!-- Debug Controls -->
-    <button id="debug-toggle">Toggle Night Mode</button>
-    <div id="debug-info"></div>
-    
     <script>
-        // Moon phase image URLs using NASA SVS (Scientific Visualization Studio)
-        // These are real photos from the Lunar Reconnaissance Orbiter
-        const MOON_PHASE_IMAGES = [];
-        
-        // Generate moon phase URLs for all 30 days of lunar cycle
-        // Using a CDN with pre-generated moon phase images
-        function generateMoonPhaseImages() {
-            // Option 1: Use NASA's moon phase images (when available)
-            // For now, we'll use a reliable free API that generates moon images
-            
-            for (let day = 0; day < 30; day++) {
-                // Using farmsense.net's free moon phase API
-                // This generates actual moon phase images based on date
-                MOON_PHASE_IMAGES.push({
-                    day: day,
-                    url: `https://www.icalendar37.net/lunar/api/?lang=en&month=${new Date().getMonth() + 1}&year=${new Date().getFullYear()}&size=200&lightColor=white&shadeColor=black&texturize=true`
-                });
-            }
-            
-            // Alternative: Use local images if you download them
-            // MOON_PHASE_IMAGES[0] = 'moon-phases/day-00.png';
-            // MOON_PHASE_IMAGES[1] = 'moon-phases/day-01.png';
-            // ... etc
-        }
-
-        // Better approach: Use predictable moon phase image URLs
-        function getMoonImageUrl(phasePercent) {
-            const dayOfCycle = Math.floor(phasePercent * 29.53);
-            return `moon-phases/day-${String(dayOfCycle).padStart(2, '0')}.png`;
-        }
-
-
-        function getCurrentDateString() {
-            const d = new Date();
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        }
-
-        // Debug mode variables
-        let debugMode = false;
-        let debugHour = 22;
-        
-        document.getElementById('debug-toggle').addEventListener('click', () => {
-            debugMode = !debugMode;
-            updateEnvironment();
-        });
+        const LOCAL_IMAGE_PATH = "moon-phases-cropped/moon-";
 
         function getMoonPhase(date) {
             const knownNewMoon = new Date('2000-01-06 18:14:00 UTC');
@@ -220,34 +120,16 @@
             return phase;
         }
 
+        function getMoonImageUrl(phase) {
+            // Map phase (0-1) to day number (0-29)
+            const dayOfCycle = Math.floor(phase * 30);
+            const paddedDay = String(dayOfCycle).padStart(2, '0');
+            return `${LOCAL_IMAGE_PATH}${paddedDay}.png`;
+        }
+
         function updateEnvironment() {
-            let now = new Date();
-            
-            if (debugMode) {
-                now.setHours(debugHour);
-                now.setMinutes(30);
-            }
-            
+            const now = new Date();
             const totalMins = (now.getHours() * 60) + now.getMinutes();
-            const phase = getMoonPhase(now);
-            const phasePercent = (phase * 100).toFixed(1);
-            
-            let phaseName = '';
-            if (phase < 0.03 || phase > 0.97) phaseName = 'New Moon';
-            else if (phase < 0.22) phaseName = 'Waxing Crescent';
-            else if (phase < 0.28) phaseName = 'First Quarter';
-            else if (phase < 0.47) phaseName = 'Waxing Gibbous';
-            else if (phase < 0.53) phaseName = 'Full Moon';
-            else if (phase < 0.72) phaseName = 'Waning Gibbous';
-            else if (phase < 0.78) phaseName = 'Last Quarter';
-            else phaseName = 'Waning Crescent';
-            
-            document.getElementById('debug-info').innerHTML = `
-                Mode: ${debugMode ? 'DEBUG (Night)' : 'LIVE'}<br>
-                Time: ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}<br>
-                Phase: ${phaseName} (${phasePercent}%)<br>
-                Day: ${Math.floor(phase * 29.53)} of cycle
-            `;
             
             // Sky color logic
             const dayPercent = (totalMins / 1440) * 100;
@@ -260,9 +142,10 @@
             if (dayPercent > 95) skyColor = "#000814";
             document.documentElement.style.setProperty('--sky-color', skyColor);
 
-            const sunrise = 360;
-            const sunset = 1140;
+            const sunrise = 360;  // 6:00 AM
+            const sunset = 1140;  // 7:00 PM
             const sunLink = document.getElementById('sun-link');
+            const moonLink = document.getElementById('moon-link');
 
             if (totalMins >= sunrise && totalMins <= sunset) {
                 // DAYTIME - Show Sun
@@ -275,6 +158,7 @@
                 const g = Math.floor(60 + (195 * heightFactor));
                 const b = Math.floor(180 * Math.pow(heightFactor, 3));
                 
+                // Ground color
                 const baseR = 40, baseG = 25, baseB = 10;
                 const targetR = 46, targetG = 204, targetB = 113;
                 const gr = Math.floor(baseR + (targetR - baseR) * heightFactor);
@@ -286,15 +170,19 @@
                 document.documentElement.style.setProperty('--sun-opacity', "1");
                 document.documentElement.style.setProperty('--sun-color', `rgb(255, ${g}, ${b})`);
                 document.documentElement.style.setProperty('--ground-color', `rgb(${gr}, ${gg}, ${gb})`);
+                
+                // Hide moon during day
                 document.documentElement.style.setProperty('--moon-opacity', "0");
+                moonLink.style.pointerEvents = "none";
 
-                setTimeout(() => { sunLink.style.pointerEvents = "auto"; }, 10000);
+                setTimeout(() => { sunLink.style.pointerEvents = "auto"; }, 8000);
             } else {
-                // NIGHTTIME - Show Moon with real image
+                // NIGHTTIME - Show Moon
                 document.documentElement.style.setProperty('--sun-opacity', "0");
                 document.documentElement.style.setProperty('--ground-color', "#000000");
                 sunLink.style.pointerEvents = "none";
 
+                // Calculate moon position
                 let nightProgress;
                 if (totalMins > sunset) {
                     nightProgress = (totalMins - sunset) / (1440 - sunset + sunrise);
@@ -310,29 +198,23 @@
                 document.documentElement.style.setProperty('--moon-bottom', moonBottom + "%");
                 document.documentElement.style.setProperty('--moon-opacity', "1");
 
-                // Update moon image based on phase
-                updateMoonImage(phase);
+                // Calculate moon phase
+                const phase = getMoonPhase(now);
+                
+                // Update moon image
+                const moonImg = document.getElementById('moon-image');
+                const imageUrl = getMoonImageUrl(phase);
+                
+                if (moonImg.src !== imageUrl) {
+                    moonImg.src = imageUrl;
+                }
+
+                setTimeout(() => { moonLink.style.pointerEvents = "auto"; }, 8000);
             }
         }
 
-        function updateMoonImage(phase) {
-            const moonImg = document.getElementById('moon-image');
-            const imageUrl = getMoonImageUrl(phase);
-            
-            // Only update if URL changed
-            if (moonImg.src !== imageUrl) {
-                moonImg.src = imageUrl;
-            }
-        }
-
-        // Initialize and hide loading message
-        window.onload = () => {
-            document.getElementById('loading').style.display = 'none';
-            generateMoonPhaseImages();
-            updateEnvironment();
-        };
-        
-        setInterval(updateEnvironment, 60000);
+        window.onload = updateEnvironment;
+        setInterval(updateEnvironment, 60000); // Update every minute
     </script>
 </body>
 </html>
