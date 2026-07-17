@@ -79,16 +79,110 @@
             transition: opacity 0.3s ease;
         }
 
+        /* Cloud Styles */
+        #cloud-layer {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            z-index: 6;                 /* above sun/moon (5), below horizon (10) */
+            pointer-events: none;       /* sun & moon stay clickable through clouds */
+        }
+
+        .cloud {
+            position: absolute;
+            filter: blur(2px);
+            will-change: transform;
+            animation: drift linear infinite;
+            transition: opacity 8s ease-in-out;
+        }
+
+        .cloud .puff {
+            position: absolute;
+            border-radius: 50%;
+        }
+
+        @keyframes drift {
+            from { transform: translateX(-40vw); }
+            to   { transform: translateX(140vw); }
+        }
+
+        /* Overcast sheet: a heavy grey wash that fades in during monsoon */
+        #overcast {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 7;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 12s ease-in-out;
+            background:
+                radial-gradient(ellipse 90% 45% at 20% 10%, rgba(90, 95, 100, 0.75), transparent 70%),
+                radial-gradient(ellipse 100% 50% at 70% 5%, rgba(70, 75, 82, 0.8), transparent 75%),
+                radial-gradient(ellipse 120% 60% at 45% 0%, rgba(105, 110, 118, 0.6), transparent 80%),
+                linear-gradient(to bottom, rgba(75, 80, 88, 0.55), rgba(90, 96, 104, 0.25) 60%, transparent);
+        }
+
+        /* Rain */
+        #rain-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 8;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 4s ease-in-out;
+        }
+
+        /* Dim veil while raining */
+        #rain-dim {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 6;
+            pointer-events: none;
+            background: rgba(20, 25, 32, 0.35);
+            opacity: 0;
+            transition: opacity 8s ease-in-out;
+        }
+
         .horizon {
             position: absolute;
             bottom: 0;
             width: 100%;
-            height: 20vh;
-            background-color: var(--ground-color);
-            background-image: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.8) 100%);
+            height: 26vh;
+            background: transparent;   /* the ground itself is painted on the canvas */
             z-index: 10;
-            transition: background-color 8s ease-in-out;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            overflow: hidden;
+        }
+
+        /* Grass, seedlings & mushrooms drawn onto this canvas */
+        #terrain-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            filter: brightness(var(--terrain-brightness, 1));
+            transition: filter 8s ease-in-out;
+        }
+
+        /* Lightning flash overlay */
+        #lightning-flash {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 9;
+            pointer-events: none;
+            background: radial-gradient(ellipse 80% 60% at 50% 20%,
+                rgba(230, 235, 255, 0.9), rgba(200, 210, 240, 0.4) 60%, transparent);
+            opacity: 0;
+        }
+
+        #lightning-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 9;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -103,7 +197,16 @@
             <img id="moon-image" class="moon-image" alt="Moon Phase">
         </a>
         
-        <div class="horizon"></div>
+        <div id="rain-dim"></div>
+        <div id="cloud-layer"></div>
+        <div id="overcast"></div>
+        <canvas id="rain-canvas"></canvas>
+        <canvas id="lightning-canvas"></canvas>
+        <div id="lightning-flash"></div>
+
+        <div class="horizon" id="horizon">
+            <canvas id="terrain-canvas"></canvas>
+        </div>
     </div>
 
     <script>
@@ -170,6 +273,7 @@
                 document.documentElement.style.setProperty('--sun-opacity', "1");
                 document.documentElement.style.setProperty('--sun-color', `rgb(255, ${g}, ${b})`);
                 document.documentElement.style.setProperty('--ground-color', `rgb(${gr}, ${gg}, ${gb})`);
+                document.documentElement.style.setProperty('--terrain-brightness', (0.45 + heightFactor * 0.65).toFixed(2));
                 
                 // Hide moon during day
                 document.documentElement.style.setProperty('--moon-opacity', "0");
@@ -179,7 +283,10 @@
             } else {
                 // NIGHTTIME - Show Moon
                 document.documentElement.style.setProperty('--sun-opacity', "0");
-                document.documentElement.style.setProperty('--ground-color', "#000000");
+                // Moonlit meadow: dark blue-green, not pure black,
+                // so the grass and hills stay visible at night
+                document.documentElement.style.setProperty('--ground-color', "rgb(24, 42, 34)");
+                document.documentElement.style.setProperty('--terrain-brightness', "0.7");
                 sunLink.style.pointerEvents = "none";
 
                 // Calculate moon position
@@ -213,8 +320,492 @@
             }
         }
 
-        window.onload = updateEnvironment;
+        /* ================= WEATHER: CLOUDS & MONSOON RAIN ================= */
+
+        // Deterministic pseudo-random from a seed, so weather is stable
+        // across page reloads and evolves over real days.
+        function seededRandom(seed) {
+            let x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+            return x - Math.floor(x);
+        }
+
+        function dayNumber(date) {
+            return Math.floor(date.getTime() / (1000 * 60 * 60 * 24));
+        }
+
+        // Weather regimes come in multi-day spells (like a monsoon front
+        // that parks over the sky for days). We pick a spell length of
+        // 3-7 days and a regime for each spell, deterministically.
+        //   0 = clear (few wispy clouds)
+        //   1 = partly cloudy
+        //   2 = overcast / monsoon (rains from time to time)
+        function getWeatherRegime(date) {
+            let day = dayNumber(date);
+            // Walk back to find the start of the current spell
+            let spellStart = day;
+            for (let d = day; d > day - 14; d--) {
+                const len = 3 + Math.floor(seededRandom(d * 7.13) * 5); // 3-7 days
+                if (seededRandom(d * 3.77) < 0.28) { // spell boundary marker
+                    if (day < d + len) { spellStart = d; break; }
+                }
+            }
+            const r = seededRandom(spellStart * 5.21);
+            if (r < 0.40) return 0;       // clear spell
+            if (r < 0.72) return 1;       // partly cloudy spell
+            return 2;                     // monsoon spell
+        }
+
+        // During a monsoon spell, rain comes and goes in bouts.
+        // Each hour has a deterministic chance of rain, with intensity.
+        function getRainIntensity(date, regime) {
+            if (regime !== 2) return 0;
+            const hourSeed = dayNumber(date) * 24 + date.getHours();
+            const r = seededRandom(hourSeed * 2.39);
+            if (r < 0.45) return 0;                        // dry break
+            // Ramp in/out within the hour so rain doesn't snap on/off
+            const minuteFrac = date.getMinutes() / 60;
+            const envelope = Math.sin(minuteFrac * Math.PI); // 0→1→0
+            return (0.3 + r * 0.7) * Math.max(0.15, envelope);
+        }
+
+        /* ---------- Cloud rendering ---------- */
+        const cloudLayer = document.getElementById('cloud-layer');
+        let currentCloudCount = -1;
+
+        // Build one realistic cloud out of overlapping soft "puffs":
+        // flat darker base, billowing lighter top.
+        function makeCloud(topPct, scale, speedSec, delaySec, darkness) {
+            const cloud = document.createElement('div');
+            cloud.className = 'cloud';
+            const w = 220 * scale, h = 70 * scale;
+            cloud.style.width = w + 'px';
+            cloud.style.height = h + 'px';
+            cloud.style.top = topPct + '%';
+            cloud.style.left = '0';
+            cloud.style.animationDuration = speedSec + 's';
+            cloud.style.animationDelay = -delaySec + 's';
+
+            const nPuffs = 7 + Math.floor(Math.random() * 5);
+            for (let i = 0; i < nPuffs; i++) {
+                const puff = document.createElement('div');
+                puff.className = 'puff';
+                const px = (i / (nPuffs - 1)) * (w * 0.75);
+                const edgeFactor = Math.sin((i / (nPuffs - 1)) * Math.PI); // bigger in middle
+                const size = (h * 0.5) + edgeFactor * h * 0.75 * (0.7 + Math.random() * 0.5);
+                // Grey tone: tops lighter, bases darker; darker overall in monsoon
+                const topGrey = Math.floor(215 - darkness * 90 + Math.random() * 15);
+                const botGrey = Math.floor(150 - darkness * 70 + Math.random() * 10);
+                puff.style.width = size + 'px';
+                puff.style.height = size * 0.85 + 'px';
+                puff.style.left = px + 'px';
+                puff.style.bottom = (Math.random() * h * 0.25) + 'px';
+                puff.style.background =
+                    `radial-gradient(circle at 50% 30%, rgb(${topGrey},${topGrey},${topGrey + 4}), rgb(${botGrey},${botGrey},${botGrey + 6}) 75%)`;
+                puff.style.opacity = 0.9;
+                cloud.appendChild(puff);
+            }
+            return cloud;
+        }
+
+        function rebuildClouds(regime) {
+            const configs = {
+                0: { count: 3,  darkness: 0.0, opacity: 0.55 },  // wispy fair-weather
+                1: { count: 7,  darkness: 0.3, opacity: 0.85 },  // grey scattered
+                2: { count: 14, darkness: 0.75, opacity: 0.95 }  // monsoon deck
+            };
+            const cfg = configs[regime];
+            if (currentCloudCount === cfg.count) return; // regime unchanged
+            currentCloudCount = cfg.count;
+
+            cloudLayer.innerHTML = '';
+            for (let i = 0; i < cfg.count; i++) {
+                const topPct = 2 + Math.random() * (regime === 2 ? 55 : 40);
+                const scale = 0.7 + Math.random() * 1.6;
+                // Bigger/lower clouds drift slower (parallax feel)
+                const speed = 90 + scale * 60 + Math.random() * 80;
+                const delay = Math.random() * speed;
+                const cloud = makeCloud(topPct, scale, speed, delay, cfg.darkness);
+                cloud.style.opacity = cfg.opacity * (0.7 + Math.random() * 0.3);
+                cloudLayer.appendChild(cloud);
+            }
+            document.getElementById('overcast').style.opacity = regime === 2 ? 1 : 0;
+        }
+
+        /* ---------- Rain rendering (canvas) ---------- */
+        const rainCanvas = document.getElementById('rain-canvas');
+        const rainCtx = rainCanvas.getContext('2d');
+        let drops = [];
+        let rainIntensity = 0;   // 0..1
+        let rainAnimating = false;
+
+        function resizeRainCanvas() {
+            rainCanvas.width = window.innerWidth;
+            rainCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeRainCanvas);
+        resizeRainCanvas();
+
+        function makeDrop() {
+            return {
+                x: Math.random() * rainCanvas.width,
+                y: Math.random() * -rainCanvas.height,
+                len: 12 + Math.random() * 14,
+                speed: 9 + Math.random() * 8,
+                drift: 1 + Math.random() * 1.5   // wind slant
+            };
+        }
+
+        function rainFrame() {
+            rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
+            const targetDrops = Math.floor(rainIntensity * 320);
+            while (drops.length < targetDrops) drops.push(makeDrop());
+            if (drops.length > targetDrops) drops.length = targetDrops;
+
+            rainCtx.strokeStyle = 'rgba(180, 195, 215, 0.5)';
+            rainCtx.lineWidth = 1.2;
+            rainCtx.beginPath();
+            for (const d of drops) {
+                rainCtx.moveTo(d.x, d.y);
+                rainCtx.lineTo(d.x - d.drift * (d.len / 10), d.y + d.len);
+                d.y += d.speed;
+                d.x -= d.drift;
+                if (d.y > rainCanvas.height) {
+                    d.y = -20;
+                    d.x = Math.random() * (rainCanvas.width + 100);
+                }
+            }
+            rainCtx.stroke();
+
+            if (rainIntensity > 0 || drops.length > 0) {
+                requestAnimationFrame(rainFrame);
+            } else {
+                rainAnimating = false;
+            }
+        }
+
+        function setRain(intensity) {
+            rainIntensity = intensity;
+            rainCanvas.style.opacity = intensity > 0 ? 1 : 0;
+            document.getElementById('rain-dim').style.opacity =
+                intensity > 0 ? Math.min(1, 0.4 + intensity * 0.6) : 0;
+            if (intensity > 0 && !rainAnimating) {
+                rainAnimating = true;
+                requestAnimationFrame(rainFrame);
+            }
+        }
+
+        /* ---------- Terrain: grass, seedlings & mushrooms ---------- */
+        const terrainCanvas = document.getElementById('terrain-canvas');
+        const terrainCtx = terrainCanvas.getContext('2d');
+
+        function drawGrassBlade(ctx, x, y, size, depth) {
+            // A curved blade: darker in back rows, lusher up front
+            const g = Math.floor(95 + depth * 85 + Math.random() * 30);
+            ctx.strokeStyle = `rgba(${Math.floor(g * 0.35)}, ${g}, ${Math.floor(g * 0.3)}, ${0.5 + depth * 0.5})`;
+            ctx.lineWidth = 0.6 + depth * 1.2;
+            const lean = (Math.random() - 0.5) * size * 0.8;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.quadraticCurveTo(x + lean * 0.3, y - size * 0.6, x + lean, y - size);
+            ctx.stroke();
+        }
+
+        function drawSeedling(ctx, x, y, size, depth) {
+            // Bright fresh-green stem with two seed-leaves
+            const green = `rgba(120, ${Math.floor(200 + Math.random() * 40)}, 90, ${0.7 + depth * 0.3})`;
+            ctx.strokeStyle = green;
+            ctx.fillStyle = green;
+            ctx.lineWidth = 0.8 + depth;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y - size * 0.55);
+            ctx.stroke();
+            const top = y - size * 0.55;
+            for (const dir of [-1, 1]) {
+                ctx.beginPath();
+                ctx.moveTo(x, top);
+                ctx.quadraticCurveTo(x + dir * size * 0.45, top - size * 0.15,
+                                     x + dir * size * 0.5, top - size * 0.45);
+                ctx.quadraticCurveTo(x + dir * size * 0.15, top - size * 0.3, x, top);
+                ctx.fill();
+            }
+        }
+
+        function drawMushroom(ctx, x, y, size, depth) {
+            const alpha = 0.75 + depth * 0.25;
+            // Stem
+            ctx.fillStyle = `rgba(232, 222, 200, ${alpha})`;
+            const stemW = size * 0.28, stemH = size * 0.55;
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(x - stemW / 2, y - stemH, stemW, stemH, stemW / 3);
+            } else {
+                ctx.rect(x - stemW / 2, y - stemH, stemW, stemH);
+            }
+            ctx.fill();
+            // Cap
+            const caps = [[190, 80, 60], [205, 130, 70], [170, 110, 80]];
+            const [cr, cg, cb] = caps[Math.floor(Math.random() * caps.length)];
+            ctx.fillStyle = `rgba(${cr}, ${cg}, ${cb}, ${alpha})`;
+            ctx.beginPath();
+            ctx.ellipse(x, y - stemH, size * 0.55, size * 0.42, 0, Math.PI, 0);
+            ctx.fill();
+            // Pale spots on the cap
+            ctx.fillStyle = `rgba(245, 238, 220, ${alpha * 0.9})`;
+            for (let i = 0; i < 3; i++) {
+                const sx = x + (Math.random() - 0.5) * size * 0.7;
+                const sy = y - stemH - Math.random() * size * 0.28;
+                ctx.beginPath();
+                ctx.arc(sx, sy, size * 0.06 + Math.random() * size * 0.04, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Seeded PRNG so the terrain layout stays identical across redraws
+        // (we repaint whenever the ground colour shifts with the daylight).
+        let terrainRandState = 0;
+        function terrainRand() {
+            terrainRandState = (terrainRandState * 1103515245 + 12345) & 0x7fffffff;
+            return terrainRandState / 0x7fffffff;
+        }
+
+        // Rolling ground profile: the y of the ground surface at x
+        function groundProfile(x, w, h) {
+            return h * 0.30
+                 + Math.sin(x / w * 4.1 + 1.7) * h * 0.10
+                 + Math.sin(x / w * 9.7 + 0.4) * h * 0.05;
+        }
+
+        function getGroundRGB() {
+            const raw = getComputedStyle(document.documentElement)
+                .getPropertyValue('--ground-color').trim();
+            let m = raw.match(/(\d+)[,\s]+(\d+)[,\s]+(\d+)/);
+            if (m) return [ +m[1], +m[2], +m[3] ];
+            m = raw.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+            if (m) return [ parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16) ];
+            return [46, 160, 90];
+        }
+
+        function drawTerrain() {
+            const horizon = document.getElementById('horizon');
+            const w = horizon.clientWidth, h = horizon.clientHeight;
+            terrainCanvas.width = w;
+            terrainCanvas.height = h;
+            const ctx = terrainCtx;
+            ctx.clearRect(0, 0, w, h);
+            terrainRandState = 987654321;      // reset seed: same layout every repaint
+            const realRandom = Math.random;
+            Math.random = terrainRand;         // route helpers through the seeded PRNG
+
+            const [gr, gg, gb] = getGroundRGB();
+
+            // --- Rolling ground body: sunlit crest fading to dark soil below ---
+            const grad = ctx.createLinearGradient(0, h * 0.15, 0, h);
+            grad.addColorStop(0, `rgb(${Math.min(255, gr * 1.35 | 0)}, ${Math.min(255, gg * 1.3 | 0)}, ${Math.min(255, gb * 1.2 | 0)})`);
+            grad.addColorStop(0.45, `rgb(${gr}, ${gg}, ${gb})`);
+            grad.addColorStop(1, `rgb(${gr * 0.3 | 0}, ${gg * 0.32 | 0}, ${gb * 0.3 | 0})`);
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            for (let x = 0; x <= w; x += 8) ctx.lineTo(x, groundProfile(x, w, h));
+            ctx.lineTo(w, h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Soft light rim along the crest, like low light catching the ridge
+            ctx.strokeStyle = `rgba(${Math.min(255, gr * 1.6 | 0)}, ${Math.min(255, gg * 1.5 | 0)}, ${Math.min(255, gb * 1.4 | 0)}, 0.5)`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            for (let x = 0; x <= w; x += 8) {
+                const y = groundProfile(x, w, h);
+                x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+
+            // --- Mottled patches: darker hollows and lighter sunlit spots ---
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(0, h);
+            for (let x = 0; x <= w; x += 8) ctx.lineTo(x, groundProfile(x, w, h));
+            ctx.lineTo(w, h);
+            ctx.closePath();
+            ctx.clip();
+            for (let i = 0; i < 26; i++) {
+                const px = terrainRand() * w;
+                const crest = groundProfile(px, w, h);
+                const py = crest + terrainRand() * (h - crest);
+                const pr = 25 + terrainRand() * 80;
+                const light = terrainRand() < 0.4;
+                const patch = ctx.createRadialGradient(px, py, 0, px, py, pr);
+                patch.addColorStop(0, light ? 'rgba(255, 255, 210, 0.10)' : 'rgba(0, 20, 0, 0.16)');
+                patch.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = patch;
+                ctx.beginPath();
+                ctx.arc(px, py, pr, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // --- Grass tufts rooted on the surface, back to front ---
+            const tufts = Math.floor(w / 6);
+            for (let i = 0; i < tufts; i++) {
+                const x = terrainRand() * w;
+                const crest = groundProfile(x, w, h);
+                const depth = Math.pow(terrainRand(), 0.8);        // 0 = on the ridge, 1 = foreground
+                const y = crest + depth * (h - crest);
+                const size = 4 + depth * 26;
+                const blades = 2 + Math.floor(terrainRand() * 4);
+                for (let b = 0; b < blades; b++) {
+                    drawGrassBlade(ctx, x + (terrainRand() - 0.5) * size * 0.8, y, size * (0.7 + terrainRand() * 0.5), depth);
+                }
+            }
+
+            // --- Fresh seedlings pushing up between the tufts ---
+            for (let i = 0; i < 55; i++) {
+                const x = terrainRand() * w;
+                const crest = groundProfile(x, w, h);
+                const depth = terrainRand();
+                const y = crest + h * 0.03 + depth * (h - crest - h * 0.05);
+                drawSeedling(ctx, x, y, 6 + depth * 14, depth);
+            }
+
+            // --- Mushrooms in small clusters ---
+            for (let c = 0; c < 5; c++) {
+                const cx = terrainRand() * w;
+                const crest = groundProfile(cx, w, h);
+                const depth = 0.35 + terrainRand() * 0.6;
+                const cy = crest + h * 0.05 + depth * (h - crest - h * 0.1);
+                const n = 1 + Math.floor(terrainRand() * 3);
+                for (let i = 0; i < n; i++) {
+                    drawMushroom(ctx, cx + (terrainRand() - 0.5) * 50 * depth,
+                                 cy + (terrainRand() - 0.5) * 14, 8 + depth * 15, depth);
+                }
+            }
+
+            Math.random = realRandom;
+        }
+        window.addEventListener('resize', drawTerrain);
+
+        // Repaint the terrain when the daylight ground colour changes
+        let lastGroundColor = '';
+        function refreshTerrainIfNeeded() {
+            const c = getComputedStyle(document.documentElement).getPropertyValue('--ground-color');
+            if (c !== lastGroundColor) {
+                lastGroundColor = c;
+                drawTerrain();
+            }
+        }
+
+        /* ---------- Lightning ---------- */
+        const lightningCanvas = document.getElementById('lightning-canvas');
+        const lightningCtx = lightningCanvas.getContext('2d');
+        const flashEl = document.getElementById('lightning-flash');
+
+        function resizeLightningCanvas() {
+            lightningCanvas.width = window.innerWidth;
+            lightningCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeLightningCanvas);
+        resizeLightningCanvas();
+
+        function drawBolt() {
+            const ctx = lightningCtx;
+            const w = lightningCanvas.width, h = lightningCanvas.height;
+            ctx.clearRect(0, 0, w, h);
+            ctx.strokeStyle = 'rgba(235, 240, 255, 0.95)';
+            ctx.shadowColor = 'rgba(180, 200, 255, 0.9)';
+            ctx.shadowBlur = 12;
+            let x = w * (0.15 + Math.random() * 0.7);
+            let y = 0;
+            const segments = [[x, y]];
+            while (y < h * (0.5 + Math.random() * 0.3)) {
+                x += (Math.random() - 0.5) * 60;
+                y += 20 + Math.random() * 40;
+                segments.push([x, y]);
+            }
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(segments[0][0], segments[0][1]);
+            for (const [sx, sy] of segments) ctx.lineTo(sx, sy);
+            ctx.stroke();
+            // A thin branch off a random midpoint
+            if (Math.random() < 0.7 && segments.length > 3) {
+                const [bx, by] = segments[1 + Math.floor(Math.random() * (segments.length - 2))];
+                ctx.lineWidth = 1.2;
+                ctx.beginPath();
+                ctx.moveTo(bx, by);
+                let fx = bx, fy = by;
+                for (let i = 0; i < 4; i++) {
+                    fx += (Math.random() - 0.2) * 50 * (Math.random() < 0.5 ? -1 : 1);
+                    fy += 15 + Math.random() * 30;
+                    ctx.lineTo(fx, fy);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function lightningStrike() {
+            // Double-flicker flash, like real lightning
+            drawBolt();
+            flashEl.style.opacity = 1;
+            setTimeout(() => { flashEl.style.opacity = 0; }, 70);
+            setTimeout(() => {
+                flashEl.style.opacity = 0.7;
+                setTimeout(() => {
+                    flashEl.style.opacity = 0;
+                    lightningCtx.clearRect(0, 0, lightningCanvas.width, lightningCanvas.height);
+                }, 90);
+            }, 160);
+        }
+
+        // Probability of a strike this minute. Highest just before a rain
+        // bout begins (we can look ahead — weather is deterministic),
+        // moderate during heavy rain, zero outside monsoon.
+        function getLightningChance(date, regime) {
+            if (regime !== 2) return 0;
+            const rainNow = getRainIntensity(date, regime);
+            // Look ahead up to 40 min for an approaching rain bout
+            let rainComing = false;
+            for (const mins of [10, 20, 30, 40]) {
+                const ahead = new Date(date.getTime() + mins * 60 * 1000);
+                if (getRainIntensity(ahead, regime) > 0.2) { rainComing = true; break; }
+            }
+            if (rainNow < 0.1 && rainComing) return 0.65;  // storm approaching: frequent strikes
+            if (rainNow > 0.5) return 0.4;                 // heavy rain: still stormy
+            if (rainNow > 0.1) return 0.2;                 // light rain: occasional
+            return 0.04;                                   // brooding overcast: rare rumble
+        }
+
+        let lightningChance = 0;
+        function maybeLightning() {
+            if (Math.random() < lightningChance) {
+                // Random moment within the next few seconds
+                setTimeout(lightningStrike, Math.random() * 4000);
+                // Occasional quick second strike
+                if (Math.random() < 0.3) {
+                    setTimeout(lightningStrike, 5000 + Math.random() * 3000);
+                }
+            }
+        }
+
+        function updateWeather() {
+            const now = new Date();
+            const regime = getWeatherRegime(now);
+            rebuildClouds(regime);
+            setRain(getRainIntensity(now, regime));
+            lightningChance = getLightningChance(now, regime);
+            refreshTerrainIfNeeded();
+        }
+
+        window.onload = function() {
+            updateEnvironment();
+            drawTerrain();
+            updateWeather();
+            maybeLightning();
+        };
         setInterval(updateEnvironment, 60000); // Update every minute
+        setInterval(updateWeather, 60000);
+        setInterval(maybeLightning, 15000);   // roll for lightning every 15s
     </script>
 </body>
 </html>
