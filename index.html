@@ -1,9 +1,11 @@
+
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>New year -- New beginnings</title>
+    <title>And now, THC</title>
     <style>
         :root {
             --sky-color: #001122;
@@ -100,6 +102,37 @@
         .cloud .puff {
             position: absolute;
             border-radius: 50%;
+        }
+
+        /* Momentarily lets clicks fall through the clouds, so we can see
+           whether the sun or moon is sitting underneath the pointer. */
+        #cloud-layer.pass-through .puff {
+            pointer-events: none;
+        }
+
+        /* A cloud carrying a link: silver lining + clickable puffs.
+           Only the puffs take clicks, so the gaps between them stay
+           transparent and the sun/moon behind remain reachable. */
+        .cloud.linked {
+            /* A warm "silver lining" — reads against both the blue day sky
+               and the dark night sky, where a pale blue glow would vanish.
+               Overrides .cloud's blur; the drift animation is left alone
+               because JS sets its duration/delay inline. */
+            filter: blur(2px)
+                    drop-shadow(0 0 6px rgba(255, 248, 214, 0.95))
+                    drop-shadow(0 0 20px rgba(255, 226, 150, 0.65));
+        }
+
+        /* Puffs carry the pulse — they have no inline animation to clash with */
+        .cloud.linked .puff {
+            pointer-events: auto;
+            cursor: pointer;
+            animation: shimmer 4.5s ease-in-out infinite;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { filter: brightness(1)    saturate(1); }
+            50%      { filter: brightness(1.18) saturate(1.15); }
         }
 
         @keyframes drift {
@@ -211,6 +244,20 @@
 
     <script>
         const LOCAL_IMAGE_PATH = "moon-phases/moon-";
+
+        /* Destinations the drifting clouds can carry. Add or change entries
+           freely — clouds pick them up in turn, preferring a destination no
+           other visible cloud is already carrying. */
+        const CLOUD_LINKS = [
+            { url: "sloka.html", label: "Sloka" },
+            { url: "https://www.youtube.com/watch?v=1hrgT_ZDUvs", label: "Girl you gotta love your man" },
+            { url: "sloka.html", label: "" },
+        ];
+            
+        ];
+
+        // How many on-screen clouds should carry a link at once
+        const CLOUD_LINK_TARGET = 3;
 
         function getMoonPhase(date) {
             const knownNewMoon = new Date('2000-01-06 18:14:00 UTC');
@@ -429,7 +476,87 @@
                 cloudLayer.appendChild(cloud);
             }
             document.getElementById('overcast').style.opacity = regime === 2 ? 1 : 0;
+            updateCloudLinks();   // the old clouds took their links with them
         }
+
+        /* ---------- Links carried by the clouds ---------- */
+        // Clouds drift on and off screen, so link duty is handed over as they
+        // go: a cloud that sails out of view gives its link up, and a cloud in
+        // view picks one up, keeping ~CLOUD_LINK_TARGET linked at any moment.
+        let cloudLinkCursor = 0;
+
+        function cloudOnScreen(cloud) {
+            const r = cloud.getBoundingClientRect();
+            return r.right > 40 && r.left < window.innerWidth - 40;
+        }
+
+        function linkCloud(cloud, link) {
+            cloud.classList.add('linked');
+            cloud.dataset.linkUrl = link.url;
+            cloud.title = link.label;
+            cloud.setAttribute('role', 'link');
+            cloud.setAttribute('aria-label', link.label);
+        }
+
+        function unlinkCloud(cloud) {
+            cloud.classList.remove('linked');
+            delete cloud.dataset.linkUrl;
+            cloud.removeAttribute('title');
+            cloud.removeAttribute('role');
+            cloud.removeAttribute('aria-label');
+        }
+
+        function updateCloudLinks() {
+            const clouds = Array.from(cloudLayer.children);
+            if (!clouds.length || !CLOUD_LINKS.length) return;
+
+            // Hand back links from clouds that have drifted out of view
+            for (const c of clouds) {
+                if (c.classList.contains('linked') && !cloudOnScreen(c)) unlinkCloud(c);
+            }
+
+            const linked = clouds.filter(c => c.classList.contains('linked'));
+            const taken = new Set(linked.map(c => c.dataset.linkUrl));
+            let need = Math.min(CLOUD_LINK_TARGET, clouds.length) - linked.length;
+            if (need <= 0) return;
+
+            for (const c of clouds) {
+                if (need <= 0) break;
+                if (c.classList.contains('linked') || !cloudOnScreen(c)) continue;
+                // Prefer a destination no visible cloud is carrying yet
+                const link = CLOUD_LINKS.find(l => !taken.has(l.url))
+                          || CLOUD_LINKS[cloudLinkCursor++ % CLOUD_LINKS.length];
+                linkCloud(c, link);
+                taken.add(link.url);
+                need--;
+            }
+        }
+
+        // What sits under the pointer once the clouds step aside?
+        function elementUnderClouds(x, y) {
+            cloudLayer.classList.add('pass-through');
+            const el = document.elementFromPoint(x, y);
+            cloudLayer.classList.remove('pass-through');
+            return el;
+        }
+
+        cloudLayer.addEventListener('click', (e) => {
+            const cloud = e.target.closest('.cloud.linked');
+            if (!cloud) return;
+
+            // The sun and moon keep priority: if one is under the pointer and
+            // currently interactive, the click belongs to it, not the cloud.
+            const below = elementUnderClouds(e.clientX, e.clientY);
+            const belowLink = below && below.closest && below.closest('#sun-link, #moon-link');
+            if (belowLink) {
+                belowLink.click();
+                return;
+            }
+
+            if (cloud.dataset.linkUrl) window.location.href = cloud.dataset.linkUrl;
+        });
+
+        setInterval(updateCloudLinks, 2000);
 
         /* ---------- Rain rendering (canvas) ---------- */
         const rainCanvas = document.getElementById('rain-canvas');
@@ -744,18 +871,136 @@
             }
         }
 
+        /* ---------- Thunder ----------
+           Synthesised rather than sampled, so every rumble is different.
+           Browsers refuse to start audio until the visitor interacts with
+           the page, so the context is created on the first click/keypress
+           and strikes before that are silent. */
+        let audioCtx = null;
+        let noiseBuffer = null;
+        let noiseBufferRate = 0;
+
+        function unlockAudio() {
+            if (!audioCtx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return;
+                audioCtx = new AC();
+            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        ['pointerdown', 'keydown', 'touchstart'].forEach(evt =>
+            window.addEventListener(evt, unlockAudio));
+
+        // Brown noise — white noise integrated into something deep and rolling
+        function getNoiseBuffer(ctx) {
+            if (noiseBuffer && noiseBufferRate === ctx.sampleRate) return noiseBuffer;
+            const len = Math.floor(ctx.sampleRate * 8);
+            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            let last = 0;
+            for (let i = 0; i < len; i++) {
+                const white = Math.random() * 2 - 1;
+                last = (last + 0.02 * white) / 1.02;
+                data[i] = last * 3.2;
+            }
+            noiseBuffer = buf;
+            noiseBufferRate = ctx.sampleRate;
+            return buf;
+        }
+
+        // distance: 0 = cracking overhead, 1 = grumbling on the horizon
+        function playThunder(distance, ctx = audioCtx) {
+            if (!ctx || (ctx.state && ctx.state !== 'running' && !ctx.startRendering)) return;
+            const near = 1 - distance;
+            const t0 = ctx.currentTime;
+            const buffer = getNoiseBuffer(ctx);
+
+            // Compressor keeps the overlapping layers from clipping
+            const comp = ctx.createDynamicsCompressor();
+            const master = ctx.createGain();
+            master.gain.value = 0.18 + near * 0.42;
+            master.connect(comp);
+            comp.connect(ctx.destination);
+
+            // The sharp crack only survives the trip if the strike is close
+            if (near > 0.5) {
+                const crack = ctx.createBufferSource();
+                crack.buffer = buffer;
+                crack.playbackRate.value = 1.6;
+                const cf = ctx.createBiquadFilter();
+                cf.type = 'lowpass';
+                cf.frequency.setValueAtTime(2400, t0);
+                cf.frequency.exponentialRampToValueAtTime(300, t0 + 0.6);
+                const cg = ctx.createGain();
+                const amp = (near - 0.5) * 1.6;
+                cg.gain.setValueAtTime(0.0001, t0);
+                cg.gain.linearRampToValueAtTime(amp, t0 + 0.012);
+                cg.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.8);
+                crack.connect(cf); cf.connect(cg); cg.connect(master);
+                crack.start(t0, Math.random() * 2);
+                crack.stop(t0 + 0.9);
+            }
+
+            // Overlapping waves of rumble — the grumble that rolls and fades
+            const layers = 3 + Math.round(near * 2);
+            for (let i = 0; i < layers; i++) {
+                const start = t0 + i * (0.12 + Math.random() * 0.5);
+                const dur = 2.5 + Math.random() * 3 + distance * 2;
+
+                const src = ctx.createBufferSource();
+                src.buffer = buffer;
+                src.loop = true;                       // outlast the buffer
+                src.playbackRate.value = 0.5 + Math.random() * 0.4;
+
+                // Distant thunder loses its highs on the way over
+                const lp = ctx.createBiquadFilter();
+                lp.type = 'lowpass';
+                const f0 = 90 + near * 420 + Math.random() * 80;
+                lp.frequency.setValueAtTime(f0, start);
+                lp.frequency.exponentialRampToValueAtTime(Math.max(40, f0 * 0.35), start + dur);
+
+                const g = ctx.createGain();
+                const peak = (0.35 + Math.random() * 0.4) * (0.5 + near * 0.5);
+                g.gain.setValueAtTime(0.0001, start);
+                g.gain.linearRampToValueAtTime(peak, start + 0.08 + Math.random() * 0.3);
+                g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+
+                // Slow wobble, so the rumble rolls instead of sitting flat
+                const lfo = ctx.createOscillator();
+                lfo.frequency.value = 0.4 + Math.random() * 2.2;
+                const lfoGain = ctx.createGain();
+                lfoGain.gain.value = peak * 0.3;
+                lfo.connect(lfoGain);
+                lfoGain.connect(g.gain);
+                lfo.start(start);
+                lfo.stop(start + dur);
+
+                src.connect(lp); lp.connect(g); g.connect(master);
+                src.start(start, Math.random() * 2);
+                src.stop(start + dur);
+            }
+        }
+
         function lightningStrike() {
+            // How far off is this one? Drives the flash, the delay and the sound.
+            const distance = Math.random();
+            const near = 1 - distance;
+            const peak = 0.45 + near * 0.55;
+
             // Double-flicker flash, like real lightning
             drawBolt();
-            flashEl.style.opacity = 1;
+            flashEl.style.opacity = peak;
             setTimeout(() => { flashEl.style.opacity = 0; }, 70);
             setTimeout(() => {
-                flashEl.style.opacity = 0.7;
+                flashEl.style.opacity = peak * 0.7;
                 setTimeout(() => {
                     flashEl.style.opacity = 0;
                     lightningCtx.clearRect(0, 0, lightningCanvas.width, lightningCanvas.height);
                 }, 90);
             }, 160);
+
+            // Sound lags the light: a beat overhead, several seconds away
+            setTimeout(() => playThunder(distance), 250 + distance * 6000);
         }
 
         // Probability of a strike this minute. Highest just before a rain
